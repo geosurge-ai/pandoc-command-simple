@@ -1,0 +1,64 @@
+cabal-version:      3.14
+name:               pandoc-command-simple
+version:            0.1.0.0
+license:            BSD-3-Clause
+license-file:       LICENSE
+author:             Your Name
+maintainer:         you@example.com
+synopsis:           JSON-driven, simple block edits for Pandoc documents
+category:           Text
+build-type:         Simple
+
+library
+  exposed-modules:    Text.Pandoc.Command.Simple
+  hs-source-dirs:     src
+  default-language:   Haskell2010
+  ghc-options:        -O2
+  build-depends:
+      base
+    , aeson
+    , bytestring
+    , text
+    , lens
+    , pandoc-types
+    , pandoc-lens
+
+test-suite unit
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     tests
+  main-is:            UnitSpec.hs
+  default-language:   Haskell2010
+  ghc-options:        -O1
+  build-depends:
+      base
+    , pandoc-command-simple
+    , aeson
+    , bytestring
+    , text
+    , lens
+    , pandoc-types
+    , pandoc-lens
+    , tasty
+    , tasty-hunit
+
+test-suite property
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     tests
+  main-is:            PropertySpec.hs
+  default-language:   Haskell2010
+  ghc-options:        -O1
+  build-depends:
+      base
+    , pandoc-command-simple
+    , aeson
+    , bytestring
+    , text
+    , lens
+    , pandoc-types
+    , pandoc-lens
+    , tasty
+    , tasty-hunit
+    , tasty-quickcheck
+    , QuickCheck
+
+

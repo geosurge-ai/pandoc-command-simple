@@ -1,0 +1,36 @@
+packages: .
+
+-- Modern Cabal 3.14+ configuration
+index-state: 2025-09-25T23:46:59Z
+
+-- Optimization and performance
+optimization: 2
+jobs: $ncpus
+keep-going: True
+
+-- Modern build features
+documentation: True
+doc-index-file: docs/index.html
+
+-- Test configuration
+tests: True
+test-show-details: streaming
+test-options: --color=always
+
+-- Benchmarks
+benchmarks: False
+
+-- Package-specific options
+package pandoc-command-simple
+  documentation: True
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates
+              -Wincomplete-uni-patterns -Wmissing-export-lists
+              -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
+
+-- Dependency constraints (can be managed with cabal freeze)
+-- allow-newer: base
+
+-- Build tools
+program-locations
+  ghc-location: ghc
+  ghc-pkg-location: ghc-pkg
