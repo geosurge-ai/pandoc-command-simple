@@ -5,8 +5,8 @@ license: BSD-3-Clause
 license-file: LICENSE
 author: Jons Mostovojs
 maintainer: jm@memorici.de
-homepage: https://github.com/geosurge-ai/pandoc-simple-command
-bug-reports: https://github.com/geosurge-ai/pandoc-simple-command/issues
+homepage: https://github.com/geosurge-ai/pandoc-command-simple
+bug-reports: https://github.com/geosurge-ai/pandoc-command-simple/issues
 synopsis: JSON-driven, simple block edits for Pandoc documents
 description:
   A lightweight library for making targeted, programmatic edits to Pandoc
