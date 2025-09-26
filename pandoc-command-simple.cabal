@@ -1,64 +1,109 @@
-cabal-version:      3.14
-name:               pandoc-command-simple
-version:            0.1.0.0
-license:            BSD-3-Clause
-license-file:       LICENSE
-author:             Your Name
-maintainer:         you@example.com
-synopsis:           JSON-driven, simple block edits for Pandoc documents
-category:           Text
-build-type:         Simple
+cabal-version: 3.14
+name: pandoc-command-simple
+version: 0.1.0.0
+license: BSD-3-Clause
+license-file: LICENSE
+author: Your Name
+maintainer: you@example.com
+homepage: https://github.com/yourusername/pandoc-simple-command-red
+bug-reports: https://github.com/yourusername/pandoc-simple-command-red/issues
+synopsis: JSON-driven, simple block edits for Pandoc documents
+description:
+  A lightweight library for making targeted, programmatic edits to Pandoc
+  documents using a simple JSON protocol. Perfect for automated document
+  processing, content management systems, and educational tools.
+  .
+  Key features:
+  .
+  * Simple addressing system for targeting specific blocks
+  * JSON serialization for language-agnostic integration
+  * Type-safe operations with clear error messages
+  * Composable operations that can be batched
+  * Conservative design focused on reliability
+  .
+  The library provides two main functions: 'applySimpleOps' for direct
+  Haskell usage and 'applySimpleOpsJSON' for JSON-driven workflows.
+  All operations work on individual blocks and support both simple indexing
+  and path-based addressing for nested structures.
+
+category: Text, JSON, Document Processing
+build-type: Simple
+extra-source-files: CHANGELOG.md
+tested-with:
+  ghc ==8.10.7
+  ghc ==9.0.2
+  ghc ==9.2.8
+  ghc ==9.4.7
+  ghc ==9.6.3
 
 library
-  exposed-modules:    Text.Pandoc.Command.Simple
-  hs-source-dirs:     src
-  default-language:   Haskell2010
-  ghc-options:        -O2
+  exposed-modules: Text.Pandoc.Command.Simple
+  hs-source-dirs: src
+  default-language: Haskell2010
+  ghc-options:
+    -O2
+    -Werror
+    -Wall
+    -Wcompat
+    -Widentities
+    -Wincomplete-record-updates
+    -Wincomplete-uni-patterns
+    -Wredundant-constraints
+    -Wwarn=partial-fields
+
   build-depends:
-      base
-    , aeson
-    , bytestring
-    , text
-    , lens
-    , pandoc-types
-    , pandoc-lens
+    aeson,
+    base,
+    bytestring,
+    lens,
+    pandoc-lens,
+    pandoc-types,
+    text
 
 test-suite unit
-  type:               exitcode-stdio-1.0
-  hs-source-dirs:     tests
-  main-is:            UnitSpec.hs
-  default-language:   Haskell2010
-  ghc-options:        -O1
+  type: exitcode-stdio-1.0
+  hs-source-dirs: tests
+  main-is: UnitSpec.hs
+  default-language: Haskell2010
+  ghc-options:
+    -O1
+    -Werror
+    -Wall
+    -Wcompat
+
   build-depends:
-      base
-    , pandoc-command-simple
-    , aeson
-    , bytestring
-    , text
-    , lens
-    , pandoc-types
-    , pandoc-lens
-    , tasty
-    , tasty-hunit
+    aeson,
+    base,
+    bytestring,
+    lens,
+    pandoc-command-simple,
+    pandoc-lens,
+    pandoc-types,
+    tasty,
+    tasty-hunit,
+    text
 
 test-suite property
-  type:               exitcode-stdio-1.0
-  hs-source-dirs:     tests
-  main-is:            PropertySpec.hs
-  default-language:   Haskell2010
-  ghc-options:        -O1
+  type: exitcode-stdio-1.0
+  hs-source-dirs: tests
+  main-is: PropertySpec.hs
+  default-language: Haskell2010
+  ghc-options:
+    -O1
+    -Werror
+    -Wall
+    -Wcompat
+
   build-depends:
-      base
-    , pandoc-command-simple
-    , aeson
-    , bytestring
-    , text
-    , lens
-    , pandoc-types
-    , pandoc-lens
-    , tasty
-    , tasty-hunit
-    , tasty-quickcheck
-    , QuickCheck
-
-
+    QuickCheck,
+    aeson,
+    base,
+    bytestring,
+    lens,
+    pandoc-command-simple,
+    pandoc-lens,
+    pandoc-types,
+    tasty,
+    tasty-hunit,
+    tasty-quickcheck,
+    text

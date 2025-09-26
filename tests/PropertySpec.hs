@@ -14,24 +14,21 @@ module Main (main) where
 --  QuickCheck, aeson, text, bytestring, pandoc-types, pandoc-lens, lens)
 
 import           Prelude
-import           Control.Monad (replicateM)
+-- remove unused replicateM
 import           Data.Maybe (fromMaybe)
-import           Data.List (genericLength)
+-- remove unused genericLength
 import           Data.Text (Text)
 import qualified Data.Text as T
-import qualified Data.ByteString.Lazy as BL
-import           GHC.Generics (Generic)
+-- remove unused BL and Generic
 
 import           Test.Tasty
 import           Test.Tasty.QuickCheck as QC
-import           Test.Tasty.HUnit as HU
-import           Test.QuickCheck
 
 import           Data.Aeson
-import           Control.Lens hiding (elements)
+-- keep minimal Control.Lens import only if needed for operators; otherwise drop
 
 import           Text.Pandoc.Definition
-import           Text.Pandoc.Lens (body)
+-- body lens unused in this file
 import           Text.Pandoc.Command.Simple
 
 --------------------------------------------------------------------------------
@@ -161,11 +158,11 @@ genPandoc = do
 locateContainerAndIndex :: Pandoc -> [Int] -> Either Text ([Block], Int)
 locateContainerAndIndex (Pandoc _ bs0) path = go bs0 path
   where
-    ixAt xs i = if i < 0 || i >= length xs then Nothing else Just (xs !! i)
+    ixAtLocal xs i = if i < 0 || i >= length xs then Nothing else Just (xs !! i)
     go _ [] = Left "Empty path"
     go bs [i] = Right (bs, i)
     go bs (i:rest) =
-      case ixAt bs i of
+      case ixAtLocal bs i of
         Nothing -> Left "Index OOB at some level"
         Just blk -> case blk of
           BlockQuote blks -> go blks rest
@@ -173,23 +170,21 @@ locateContainerAndIndex (Pandoc _ bs0) path = go bs0 path
           Figure _ _ blks -> go blks rest
           OrderedList _ items ->
             case rest of
-              (itemIx:rest2) -> case ixAt items itemIx of
+              (itemIx:rest2) -> case ixAtLocal items itemIx of
                                   Nothing    -> Left "Item index OOB"
                                   Just blks  -> go blks rest2
-              _ -> Left "Path shape invalid for OrderedList"
           BulletList items ->
             case rest of
-              (itemIx:rest2) -> case ixAt items itemIx of
+              (itemIx:rest2) -> case ixAtLocal items itemIx of
                                   Nothing    -> Left "Item index OOB"
                                   Just blks  -> go blks rest2
-              _ -> Left "Path shape invalid for BulletList"
           DefinitionList defs ->
             case rest of
               (termIx:defIx:rest2) ->
-                case ixAt defs termIx of
+                case ixAtLocal defs termIx of
                   Nothing -> Left "termIx OOB"
                   Just (_term, defLists) ->
-                    case ixAt defLists defIx of
+                    case ixAtLocal defLists defIx of
                       Nothing    -> Left "defIx OOB"
                       Just blks  -> go blks rest2
               _ -> Left "Path shape invalid for DefinitionList"
@@ -197,12 +192,12 @@ locateContainerAndIndex (Pandoc _ bs0) path = go bs0 path
 
 -- Generate a valid path into a given document
 genValidPath :: Pandoc -> Gen [Int]
-genValidPath doc@(Pandoc _ bs0) = do
+genValidPath (Pandoc _ bs0) = do
   i0 <- choose (0, length bs0 - 1)
   go (bs0 !! i0) [i0] 3  -- allow at most 3 descents
   where
     go :: Block -> [Int] -> Int -> Gen [Int]
-    go blk acc 0 = pure acc
+    go _ acc 0 = pure acc
     go blk acc depth = do
       let stop = pure acc
       let descendBlockQuote blks = do
@@ -249,7 +244,7 @@ genInvalidPath doc = do
     makeOOB p = do
       case locateContainerAndIndex doc p of
         Left _ -> pure (p ++ [9999])    -- fallback
-        Right (bs, i) -> do
+        Right (bs, _j) -> do
           let bad = length bs + 5
           pure (init p ++ [bad])        -- out of bounds at the last hop
 
@@ -272,8 +267,8 @@ containerLengthAt doc path = either (const Nothing) (Just . length . fst) (locat
 
 readAt :: Pandoc -> [Int] -> Maybe Block
 readAt doc path = do
-  (bs, i) <- either (const Nothing) Just (locateContainerAndIndex doc path)
-  if i < 0 || i >= length bs then Nothing else Just (bs !! i)
+  (bs, j) <- either (const Nothing) Just (locateContainerAndIndex doc path)
+  if j < 0 || j >= length bs then Nothing else Just (bs !! j)
 
 --------------------------------------------------------------------------------
 -- Properties
@@ -418,7 +413,7 @@ prop_header_adjust =
   forAll (genValidPath doc) $ \path ->
   forAll (oneof [Left <$> choose (1,6), Right <$> choose (-3,3)]) $ \choice ->
     case readAt doc path of
-      Just (Header lvl a xs) ->
+      Just (Header lvl _ _) ->
         let (mSet, mDelta) = case choice of
                                Left newL  -> (Just newL, Nothing)
                                Right d    -> (Nothing, Just d)

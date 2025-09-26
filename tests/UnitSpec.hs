@@ -5,8 +5,7 @@ module Main (main) where
 -- These are intended to be readable, regression-focused examples.
 
 import           Data.Text (Text)
-import qualified Data.Text as T
-import qualified Data.ByteString.Lazy as BL
+-- removed unused imports
 
 import           Test.Tasty
 import           Test.Tasty.HUnit
@@ -35,18 +34,9 @@ blist = BulletList
   , [ p "li2-1" ]
   ]
 
-olist :: Block
-olist = OrderedList (1, DefaultStyle, DefaultDelim)
-  [ [ p "ol1" ], [ p "ol2" ] ]
+-- olist helper was unused; remove to satisfy -Wunused-top-binds
 
-dlist :: Block
-dlist = DefinitionList
-  [ ( [Str "term"]
-    , [ [ p "def1-a", p "def1-b" ]
-      , [ p "def1-c" ]
-      ]
-    )
-  ]
+-- dlist helper was unused; remove to satisfy -Wunused-top-binds
 
 fig :: Block
 fig = Figure ("fig-1", ["fclass"], []) (Caption Nothing []) [ p "fig-body" ]
@@ -64,21 +54,21 @@ assertRight (Left _)  = assertFailure "Expected Right but got Left" >> error "un
 main :: IO ()
 main = defaultMain $ testGroup "Text.Pandoc.Command.Simple (unit tests)"
   [ testCase "Replace: top-level block" $ do
-      let op = Replace (FocusPath [1]) (plain "X")
-      d' <- assertRight $ applySimpleOps [op] doc0
+      let sop = Replace (FocusPath [1]) (plain "X")
+      d' <- assertRight $ applySimpleOps [sop] doc0
       (d' ^. body) @?= [ p "a", plain "X", blist, dv, fig, p "z" ]
 
   , testCase "InsertBefore: nested in BulletList (first item, position 1)" $ do
-      let op = InsertBefore (FocusPath [2,0,1]) (p "NEW")
-      d' <- assertRight $ applySimpleOps [op] doc0
+      let sop = InsertBefore (FocusPath [2,0,1]) (p "NEW")
+      d' <- assertRight $ applySimpleOps [sop] doc0
       -- item 0 now has: li1-1, NEW, li1-2
       case (d' ^. body) !! 2 of
         BulletList (item0:_) -> item0 @?= [ p "li1-1", p "NEW", p "li1-2" ]
         _ -> assertFailure "Expected BulletList after edit"
 
   , testCase "InsertAfter: top-level after header" $ do
-      let op = InsertAfter (FocusPath [1]) (code "C")
-      d' <- assertRight $ applySimpleOps [op] doc0
+      let sop = InsertAfter (FocusPath [1]) (code "C")
+      d' <- assertRight $ applySimpleOps [sop] doc0
       (d' ^. body) @?= [ p "a", hdr 2 "h", code "C", blist, dv, fig, p "z" ]
 
   , testCase "Delete: remove Div" $ do
