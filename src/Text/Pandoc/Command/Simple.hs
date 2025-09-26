@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE RecordWildCards #-}
+
 
 {-|
 Module      : Text.Pandoc.Command.Simple
@@ -232,7 +232,7 @@ data Focus
 -- JSON: { "index": N }  or  { "path": [i, j, ...] }
 instance FromJSON Focus where
   parseJSON = withObject "Focus" $ \o ->
-    (FocusIndex <$> o .: "index") <|> (FocusPath <$> o .: "path")
+    FocusIndex <$> o .: "index" <|> FocusPath <$> o .: "path"
 
 instance ToJSON Focus where
   toJSON (FocusIndex i) = object ["index" .= i]
@@ -470,7 +470,7 @@ __Advanced optimization__ (single traversal with custom logic):
 * __Best case__: Shallow operations on nearby blocks
 -}
 applySimpleOps :: [SimpleOp] -> Pandoc -> Either Text Pandoc
-applySimpleOps ops = go ops
+applySimpleOps = go
   where
     go []     d = Right d
     go (x:xs) d = applySimpleOp x d >>= go xs
@@ -571,7 +571,7 @@ editFor sop = case sop of
   Replace _ newBlk        -> \bs i -> replaceAt i newBlk bs
   InsertBefore _ newBlk   -> \bs i -> insertAt i newBlk bs
   InsertAfter _ newBlk    -> \bs i -> insertAt (i+1) newBlk bs
-  Delete _                -> \bs i -> deleteAt i bs
+  Delete _                -> flip deleteAt
   WrapBlockQuote _        -> \bs i -> wrapAt i (BlockQuote . (:[])) bs
   WrapDiv _ a             -> \bs i -> wrapAt i (\b -> Div a [b]) bs
   SetAttr _ a             -> \bs i -> do

@@ -1,4 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use head" #-}
 module Main (main) where
 
 -- Unit tests for each operation in Text.Pandoc.Command.Simple.
@@ -27,17 +29,13 @@ hdr :: Int -> Text -> Block
 hdr n s = Header n nullAttr [Str s]
 
 code :: Text -> Block
-code s = CodeBlock nullAttr s
+code = CodeBlock nullAttr
 
 blist :: Block
 blist = BulletList
   [ [ p "li1-1", p "li1-2" ]
   , [ p "li2-1" ]
   ]
-
--- olist helper was unused; remove to satisfy -Wunused-top-binds
-
--- dlist helper was unused; remove to satisfy -Wunused-top-binds
 
 fig :: Block
 fig = Figure ("fig-1", ["fclass"], []) (Caption Nothing []) [ p "fig-body" ]
@@ -74,7 +72,7 @@ main = defaultMain $ testGroup "Text.Pandoc.Command.Simple (unit tests)"
 
   , testCase "Delete: remove Div" $ do
       d' <- assertRight $ applySimpleOps [Delete (FocusPath [3])] doc0
-      (length (d' ^. body)) @?= 5
+      length (d' ^. body) @?= 5
       (d' ^. body) @?= [ p "a", hdr 2 "h", blist, fig, p "z" ]
 
   , testCase "WrapBlockQuote: wrap a paragraph" $ do
