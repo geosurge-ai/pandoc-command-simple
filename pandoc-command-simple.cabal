@@ -3,10 +3,10 @@ name: pandoc-command-simple
 version: 0.1.0.0
 license: BSD-3-Clause
 license-file: LICENSE
-author: Your Name
-maintainer: you@example.com
-homepage: https://github.com/yourusername/pandoc-simple-command-red
-bug-reports: https://github.com/yourusername/pandoc-simple-command-red/issues
+author: Jons Mostovojs
+maintainer: jm@memorici.de
+homepage: https://github.com/geosurge-ai/pandoc-simple-command
+bug-reports: https://github.com/geosurge-ai/pandoc-simple-command/issues
 synopsis: JSON-driven, simple block edits for Pandoc documents
 description:
   A lightweight library for making targeted, programmatic edits to Pandoc
