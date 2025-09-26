@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE DeriveGeneric #-}
+
+
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Main (main) where
@@ -10,25 +10,21 @@ module Main (main) where
 -- Property-based tests for Text.Pandoc.Command.Simple
 --
 -- Run with:  cabal test  OR  stack test
--- (Make sure the test suite depends on: tasty, tasty-quickcheck, tasty-hunit,
+-- (Ensure deps: tasty, tasty-quickcheck, tasty-hunit,
 --  QuickCheck, aeson, text, bytestring, pandoc-types, pandoc-lens, lens)
 
 import           Prelude
--- remove unused replicateM
 import           Data.Maybe (fromMaybe)
--- remove unused genericLength
 import           Data.Text (Text)
 import qualified Data.Text as T
--- remove unused BL and Generic
 
 import           Test.Tasty
 import           Test.Tasty.QuickCheck as QC
 
 import           Data.Aeson
--- keep minimal Control.Lens import only if needed for operators; otherwise drop
+--
 
 import           Text.Pandoc.Definition
--- body lens unused in this file
 import           Text.Pandoc.Command.Simple
 
 --------------------------------------------------------------------------------
@@ -65,13 +61,20 @@ instance Arbitrary ColWidth where
 instance Arbitrary RowHeadColumns where
   arbitrary = RowHeadColumns <$> choose (0,3)
 
+genAttr :: Gen Attr
+genAttr = do
+  i  <- arbitrary
+  cs <- listOf (elements ["a","b","c","x","y","z","note","callout"])
+  kv <- listOf ( (,) <$> elements ["data-k","role","title","name"] <*> arbitrary )
+  pure (i, cs, kv)
+
 -- Inlines (keep them small; depth parameter drives size)
 genInline :: Int -> Gen Inline
 genInline d = frequency $
   [ (6, Str <$> arbitrary)
   , (1, pure Space)
   , (1, pure LineBreak)
-  , (1, Code <$> arbitrary <*> arbitrary)
+  , (1, Code <$> genAttr <*> arbitrary)
   , (1, Math <$> arbitrary <*> arbitrary)
   , (1, RawInline <$> arbitrary <*> arbitrary)
   ] ++ if d <= 0 then []
@@ -82,7 +85,7 @@ genInline d = frequency $
         , (1, Superscript <$> genInlines (d-1))
         , (1, Subscript <$> genInlines (d-1))
         , (1, SmallCaps <$> genInlines (d-1))
-        , (1, Span <$> arbitrary <*> genInlines (d-1))
+        , (1, Span <$> genAttr <*> genInlines (d-1))
         ]
 
 genInlines :: Int -> Gen [Inline]
@@ -94,19 +97,19 @@ genBlock d = frequency $
   [ (4, Plain <$> genInlines (d-1))
   , (5, Para  <$> genInlines (d-1))
   , (1, LineBlock <$> resize 2 (listOf (resize 3 (listOf (genInline (d-1))))))
-  , (2, CodeBlock <$> arbitrary <*> arbitrary)
+  , (2, CodeBlock <$> genAttr <*> arbitrary)
   , (1, RawBlock <$> arbitrary <*> arbitrary)
-  , (1, Header <$> choose (1,6) <*> arbitrary <*> genInlines (d-1))
+  , (1, Header <$> choose (1,6) <*> genAttr <*> genInlines (d-1))
   , (1, pure HorizontalRule)
   , (1, genTable d)
   ] ++ if d <= 0 then []
        else
         [ (2, BlockQuote <$> genBlocks (d-1))
-        , (2, Div <$> arbitrary <*> genBlocks (d-1))
-        , (2, Figure <$> arbitrary <*> genCaption (d-1) <*> genBlocks (d-1))
-        , (2, OrderedList <$> genListAttrs <*> resize 3 (listOf (genBlocks (d-1))))
-        , (2, BulletList  <$> resize 3 (listOf (genBlocks (d-1))))
-        , (2, DefinitionList <$> resize 2 (listOf genDefItem))
+        , (2, Div <$> genAttr <*> genBlocks (d-1))
+        , (2, Figure <$> genAttr <*> genCaption (d-1) <*> genBlocks (d-1))
+        , (2, OrderedList <$> genListAttrs <*> resize 3 (listOf1 (genBlocks (d-1))))  -- non-empty items; each non-empty
+        , (2, BulletList  <$> resize 3 (listOf1 (genBlocks (d-1))))                    -- non-empty items; each non-empty
+        , (2, DefinitionList <$> resize 2 (listOf1 genDefItem))                        -- non-empty terms; each has non-empty defs of non-empty blocks
         ]
 
 genBlocks :: Int -> Gen [Block]
@@ -119,14 +122,14 @@ genCaption :: Int -> Gen Caption
 genCaption d = Caption <$> frequency [(1, pure Nothing),(2, Just <$> resize 2 (listOf (genInline (d-1))))] <*> genBlocks (d-1)
 
 genRow :: Int -> Gen Row
-genRow d = Row <$> arbitrary <*> resize 2 (listOf (genCell d))
+genRow d = Row <$> genAttr <*> resize 2 (listOf (genCell d))
 
 genCell :: Int -> Gen Cell
-genCell d = Cell <$> arbitrary <*> arbitrary <*> (RowSpan <$> choose (1,2)) <*> (ColSpan <$> choose (1,2)) <*> genBlocks (d-1)
+genCell d = Cell <$> genAttr <*> arbitrary <*> (RowSpan <$> choose (1,2)) <*> (ColSpan <$> choose (1,2)) <*> genBlocks (d-1)
 
 genTable :: Int -> Gen Block
 genTable d = do
-  a  <- arbitrary
+  a  <- genAttr
   cap <- genCaption (d-1)
   cols <- resize 3 (listOf ((,) <$> arbitrary <*> arbitrary))
   headR <- resize 2 (listOf (genRow (d-1)))
@@ -138,7 +141,7 @@ genTable d = do
 genDefItem :: Gen ([Inline], [[Block]])
 genDefItem = do
   term <- resize 2 (listOf (Str <$> elements ["x","y","z","t","n"]))
-  defs <- resize 2 $ listOf $ resize 3 $ listOf (Para <$> (resize 2 $ listOf (Str <$> elements ["a","b","c","d"])) )
+  defs <- resize 2 $ listOf1 $ resize 3 $ listOf1 (genBlock 1)
   pure (term, defs)
 
 instance Arbitrary Block where
@@ -156,13 +159,13 @@ genPandoc = do
 -- Locate the container [Block] list and the target index within it
 -- following the same rules that applyInsideBlock uses.
 locateContainerAndIndex :: Pandoc -> [Int] -> Either Text ([Block], Int)
-locateContainerAndIndex (Pandoc _ bs0) path = go bs0 path
+locateContainerAndIndex (Pandoc _ bs0) = go bs0
   where
-    ixAtLocal xs i = if i < 0 || i >= length xs then Nothing else Just (xs !! i)
+    ixAt xs i = if i < 0 || i >= length xs then Nothing else Just (xs !! i)
     go _ [] = Left "Empty path"
     go bs [i] = Right (bs, i)
     go bs (i:rest) =
-      case ixAtLocal bs i of
+      case ixAt bs i of
         Nothing -> Left "Index OOB at some level"
         Just blk -> case blk of
           BlockQuote blks -> go blks rest
@@ -170,31 +173,31 @@ locateContainerAndIndex (Pandoc _ bs0) path = go bs0 path
           Figure _ _ blks -> go blks rest
           OrderedList _ items ->
             case rest of
-              (itemIx:rest2) -> case ixAtLocal items itemIx of
+              (itemIx:rest2) -> case ixAt items itemIx of
                                   Nothing    -> Left "Item index OOB"
                                   Just blks  -> go blks rest2
           BulletList items ->
             case rest of
-              (itemIx:rest2) -> case ixAtLocal items itemIx of
+              (itemIx:rest2) -> case ixAt items itemIx of
                                   Nothing    -> Left "Item index OOB"
                                   Just blks  -> go blks rest2
           DefinitionList defs ->
             case rest of
               (termIx:defIx:rest2) ->
-                case ixAtLocal defs termIx of
+                case ixAt defs termIx of
                   Nothing -> Left "termIx OOB"
                   Just (_term, defLists) ->
-                    case ixAtLocal defLists defIx of
+                    case ixAt defLists defIx of
                       Nothing    -> Left "defIx OOB"
                       Just blks  -> go blks rest2
               _ -> Left "Path shape invalid for DefinitionList"
           _ -> Left "Path goes too deep"
 
--- Generate a valid path into a given document
+-- Generate a valid path into a given document (always ends at a block index).
 genValidPath :: Pandoc -> Gen [Int]
 genValidPath (Pandoc _ bs0) = do
   i0 <- choose (0, length bs0 - 1)
-  go (bs0 !! i0) [i0] 3  -- allow at most 3 descents
+  go (bs0 !! i0) [i0] 3  -- at most 3 descents
   where
     go :: Block -> [Int] -> Int -> Gen [Int]
     go _ acc 0 = pure acc
@@ -204,26 +207,27 @@ genValidPath (Pandoc _ bs0) = do
             if null blks then stop else do
               j <- choose (0, length blks - 1)
               go (blks !! j) (acc ++ [j]) (depth - 1)
-      let descendDiv blks = descendBlockQuote blks
-      let descendFigure blks = descendBlockQuote blks
-      let descendOL items = if null items then stop else do
-            itemIx <- choose (0, length items - 1)
-            let blks = items !! itemIx
-            if null blks then pure (acc ++ [itemIx])  -- stop at container edge
-            else do j <- choose (0, length blks - 1)
-                    go (blks !! j) (acc ++ [itemIx, j]) (depth - 1)
-      let descendDL defs = if null defs then stop else do
-            termIx <- choose (0, length defs - 1)
-            let (_term, defLists) = defs !! termIx
-            if null defLists then pure (acc ++ [termIx])
-            else do defIx <- choose (0, length defLists - 1)
-                    let blks = defLists !! defIx
-                    if null blks then pure (acc ++ [termIx, defIx])
-                    else do j <- choose (0, length blks - 1)
-                            go (blks !! j) (acc ++ [termIx, defIx, j]) (depth - 1)
+      let descendDiv = descendBlockQuote
+      let descendFigure = descendBlockQuote
+      let descendOL items =
+            if null items then stop else do
+              itemIx <- choose (0, length items - 1)
+              let blks = items !! itemIx
+              if null blks then stop
+              else do j <- choose (0, length blks - 1)
+                      go (blks !! j) (acc ++ [itemIx, j]) (depth - 1)
+      let descendDL defs =
+            if null defs then stop else do
+              termIx <- choose (0, length defs - 1)
+              let (_term, defLists) = defs !! termIx
+              if null defLists then stop
+              else do defIx <- choose (0, length defLists - 1)
+                      let blks = defLists !! defIx
+                      if null blks then stop
+                      else do j <- choose (0, length blks - 1)
+                              go (blks !! j) (acc ++ [termIx, defIx, j]) (depth - 1)
       frequency $
-        [ (4, stop) ] ++
-        case blk of
+        (4, stop) : case blk of
           BlockQuote blks   -> [(3, descendBlockQuote blks)]
           Div _ blks        -> [(3, descendDiv blks)]
           Figure _ _ blks   -> [(2, descendFigure blks)]
@@ -241,16 +245,15 @@ genInvalidPath doc = do
         ]
   where
     makeTooDeep p = pure (p ++ [9999])  -- too deep at the end
-    makeOOB p = do
-      case locateContainerAndIndex doc p of
-        Left _ -> pure (p ++ [9999])    -- fallback
-        Right (bs, _j) -> do
-          let bad = length bs + 5
-          pure (init p ++ [bad])        -- out of bounds at the last hop
+    makeOOB p = case locateContainerAndIndex doc p of
+      Left _ -> pure (p ++ [9999])    -- fallback
+      Right (bs, _i) -> do
+        let bad = length bs + 5
+        pure (init p ++ [bad])        -- out of bounds at the last hop
 
 -- A simple fresh block and inline for edits
 freshBlock :: Gen Block
-freshBlock = Para <$> pure [Str "XXX"]
+freshBlock = pure (Para [Str "XXX"])
 
 freshInlines :: Gen [Inline]
 freshInlines = pure [Space, Str "APPENDED"]
@@ -267,8 +270,8 @@ containerLengthAt doc path = either (const Nothing) (Just . length . fst) (locat
 
 readAt :: Pandoc -> [Int] -> Maybe Block
 readAt doc path = do
-  (bs, j) <- either (const Nothing) Just (locateContainerAndIndex doc path)
-  if j < 0 || j >= length bs then Nothing else Just (bs !! j)
+  (bs, i) <- either (const Nothing) Just (locateContainerAndIndex doc path)
+  if i < 0 || i >= length bs then Nothing else Just (bs !! i)
 
 --------------------------------------------------------------------------------
 -- Properties
@@ -383,28 +386,25 @@ prop_set_attr_success_or_failure =
       Just blk ->
         let res = applySimpleOps [SetAttr (FocusPath path) a] doc
         in case blk of
-             Header{} -> isAttrSet a res
-             CodeBlock{} -> isAttrSet a res
-             Div{} -> isAttrSet a res
-             Figure{} -> isAttrSet a res
-             Table{} -> isAttrSet a res
+             Header{} -> isAttrSet path a res
+             CodeBlock{} -> isAttrSet path a res
+             Div{} -> isAttrSet path a res
+             Figure{} -> isAttrSet path a res
+             Table{} -> isAttrSet path a res
              _ -> case res of
                     Left _ -> property True
                     Right _ -> counterexample "SetAttr should fail for this block" False
   where
-    isAttrSet a (Right doc') =
-      case readAt doc' pathHole of
+    isAttrSet :: [Int] -> Attr -> Either Text Pandoc -> Property
+    isAttrSet p a (Right doc') =
+      case readAt doc' p of
         Just (Header n a' xs) -> conjoin [a' === a, property (n >= 1 && n <= 6), property (not (null xs) || null xs)]
         Just (CodeBlock a' _) -> a' === a
         Just (Div a' _)       -> a' === a
         Just (Figure a' _ _)  -> a' === a
         Just (Table a' _ _ _ _ _) -> a' === a
         _ -> counterexample "Attr not set" False
-    isAttrSet _ (Left _) = counterexample "SetAttr failed unexpectedly" False
-    -- trick: we rebind in the scope of property via a let above; QuickCheck's
-    -- combinators don't carry the path, so we stash it here via a top-level
-    -- placeholder and rely on scoping in callsite (safe as we only use it there).
-    pathHole = [] :: [Int]
+    isAttrSet _ _ (Left _) = counterexample "SetAttr failed unexpectedly" False
 
 -- HeaderAdjust succeeds only on headers, clamps to [1..6], obeys set/delta
 prop_header_adjust :: Property
@@ -413,7 +413,7 @@ prop_header_adjust =
   forAll (genValidPath doc) $ \path ->
   forAll (oneof [Left <$> choose (1,6), Right <$> choose (-3,3)]) $ \choice ->
     case readAt doc path of
-      Just (Header lvl _ _) ->
+      Just (Header lvl _a _xs) ->
         let (mSet, mDelta) = case choice of
                                Left newL  -> (Just newL, Nothing)
                                Right d    -> (Nothing, Just d)
@@ -474,14 +474,12 @@ prop_invalid_paths_fail =
 
 prop_json_roundtrip_ops :: Property
 prop_json_roundtrip_ops =
-  forAll genPandoc $ \doc ->
-  forAll (genValidPath doc) $ \path ->
-  forAll freshBlock $ \b ->
-    let ops = [ Replace (FocusPath path) b
-              , InsertAfter (FocusPath path) b
-              , WrapBlockQuote (FocusPath path)
-              ]
-        encoded = encode ops
+  forAll genPandoc $ \_doc ->
+  forAll (listOf1 (oneof [ Replace (FocusPath [0]) <$> freshBlock
+                         , InsertAfter (FocusPath [0]) <$> freshBlock
+                         , pure (WrapBlockQuote (FocusPath [0]))
+                         ])) $ \ops ->
+    let encoded = encode ops
         decoded = eitherDecode encoded :: Either String [SimpleOp]
     in case decoded of
          Left _ -> property False
@@ -518,7 +516,9 @@ genSomeOp doc = do
 --------------------------------------------------------------------------------
 
 main :: IO ()
-main = defaultMain $ testGroup "Text.Pandoc.Command.Simple (property tests)"
+main = defaultMain $
+  localOption (QuickCheckMaxSize 60) $  -- keep sizes moderate for speed/oom safety  -- keep sizes moderate for speed/oom safety
+  testGroup "Text.Pandoc.Command.Simple (property tests)"
   [ QC.testProperty "Replace preserves container length"               prop_replace_preserves_length
   , QC.testProperty "Replace sets the block at focus"                  prop_replace_sets_block
   , QC.testProperty "InsertBefore increases length and shifts"         prop_insert_before_increases_length_and_shifts

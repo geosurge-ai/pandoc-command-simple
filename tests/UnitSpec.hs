@@ -9,6 +9,7 @@ import           Data.Text (Text)
 
 import           Test.Tasty
 import           Test.Tasty.HUnit
+import           Test.Tasty.QuickCheck as QC
 
 import           Text.Pandoc.Definition
 import           Text.Pandoc.Command.Simple
@@ -145,4 +146,5 @@ main = defaultMain $ testGroup "Text.Pandoc.Command.Simple (unit tests)"
       case applySimpleOps [Replace (FocusPath [42]) (p "nope")] doc0 of
         Left _ -> pure ()
         Right _ -> assertFailure "Expected failure for OOB index"
+  , QC.testProperty "QuickCheck flags are recognized" $ QC.property True
   ]

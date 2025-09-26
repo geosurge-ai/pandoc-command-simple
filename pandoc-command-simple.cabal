@@ -30,11 +30,7 @@ category: Text, JSON, Document Processing
 build-type: Simple
 extra-source-files: CHANGELOG.md
 tested-with:
-  ghc ==8.10.7
-  ghc ==9.0.2
-  ghc ==9.2.8
-  ghc ==9.4.7
-  ghc ==9.6.3
+  ghc ==9.8.4
 
 library
   exposed-modules: Text.Pandoc.Command.Simple
@@ -81,6 +77,7 @@ test-suite unit
     pandoc-types,
     tasty,
     tasty-hunit,
+    tasty-quickcheck,
     text
 
 test-suite property
