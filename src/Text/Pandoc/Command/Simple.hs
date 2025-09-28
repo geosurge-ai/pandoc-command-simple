@@ -174,6 +174,8 @@ module Text.Pandoc.Command.Simple
     -- * Apply commands
   , applySimpleOps
   , applySimpleOpsJSON
+    -- * Re-exports from JSONSchema module
+  , module Text.Pandoc.Command.Simple.JSONSchema
   ) where
 
 import           Control.Applicative ((<|>))
@@ -190,6 +192,8 @@ import           Text.Pandoc.Lens
 
 import           Data.Aeson ((.=), eitherDecode', FromJSON(..), ToJSON(..), Value(..), withObject, (.:), (.:?), object)
 import           Data.Aeson.Types (Parser)
+
+import           Text.Pandoc.Command.Simple.JSONSchema
 
 --------------------------------------------------------------------------------
 -- Focus: where to apply an operation
