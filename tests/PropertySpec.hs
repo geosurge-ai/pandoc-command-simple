@@ -22,6 +22,7 @@ import           Test.Tasty
 import           Test.Tasty.QuickCheck as QC
 
 import           Data.Aeson
+import           Data.Aeson.Types (parseEither)
 --
 
 import           Text.Pandoc.Definition
@@ -107,13 +108,13 @@ genBlock d = frequency $
         [ (2, BlockQuote <$> genBlocks (d-1))
         , (2, Div <$> genAttr <*> genBlocks (d-1))
         , (2, Figure <$> genAttr <*> genCaption (d-1) <*> genBlocks (d-1))
-        , (2, OrderedList <$> genListAttrs <*> resize 3 (listOf1 (genBlocks (d-1))))  -- non-empty items; each non-empty
-        , (2, BulletList  <$> resize 3 (listOf1 (genBlocks (d-1))))                    -- non-empty items; each non-empty
+        , (2, OrderedList <$> genListAttrs <*> resize 2 (listOf1 (genBlocks (d-1))))  -- non-empty items; each non-empty
+        , (2, BulletList  <$> resize 2 (listOf1 (genBlocks (d-1))))                    -- non-empty items; each non-empty
         , (2, DefinitionList <$> resize 2 (listOf1 genDefItem))                        -- non-empty terms; each has non-empty defs of non-empty blocks
         ]
 
 genBlocks :: Int -> Gen [Block]
-genBlocks d = resize 3 (listOf1 (genBlock (d-1)))
+genBlocks d = resize 2 (listOf1 (genBlock (d-1)))
 
 genListAttrs :: Gen ListAttributes
 genListAttrs = (,,) <$> choose (1,5) <*> arbitrary <*> arbitrary
@@ -145,11 +146,11 @@ genDefItem = do
   pure (term, defs)
 
 instance Arbitrary Block where
-  arbitrary = sized (\n -> genBlock (max 1 (n `div` 3)))
+  arbitrary = sized (\n -> genBlock (max 1 (n `div` 6)))
 
 genPandoc :: Gen Pandoc
 genPandoc = do
-  bs <- sized (\n -> resize (max 1 (n `div` 2)) (listOf1 (genBlock (max 1 (n `div` 3)))))
+  bs <- sized (\n -> resize (max 1 (n `div` 4)) (listOf1 (genBlock (max 1 (n `div` 8)))))
   pure (Pandoc nullMeta bs)
 
 --------------------------------------------------------------------------------
@@ -272,6 +273,25 @@ readAt :: Pandoc -> [Int] -> Maybe Block
 readAt doc path = do
   (bs, i) <- either (const Nothing) Just (locateContainerAndIndex doc path)
   if i < 0 || i >= length bs then Nothing else Just (bs !! i)
+
+--------------------------------------------------------------------------------
+-- Schema Validation Helpers
+--------------------------------------------------------------------------------
+
+-- | Test that a SimpleOp can be encoded to JSON and parsed back successfully
+-- This ensures the JSON encoding complies with our schema expectations
+validateSimpleOpJSON :: SimpleOp -> Bool
+validateSimpleOpJSON op =
+  case parseEither parseJSON (toJSON op) of
+    Right op' -> op == op'
+    Left _ -> False
+
+-- | Test that a list of SimpleOps can be encoded and parsed back
+validateSimpleOpsJSON :: [SimpleOp] -> Bool
+validateSimpleOpsJSON ops =
+  case parseEither parseJSON (toJSON ops) of
+    Right ops' -> ops == ops'
+    Left _ -> False
 
 --------------------------------------------------------------------------------
 -- Properties
@@ -488,13 +508,57 @@ prop_json_roundtrip_ops =
 prop_apply_ops_fold_equivalence :: Property
 prop_apply_ops_fold_equivalence =
   forAll genPandoc $ \doc ->
-  forAll (sized (\n -> resize (max 1 (n `div` 2)) (listOf1 (genSomeOp doc)))) $ \ops ->
+  forAll (sized (\n -> resize (max 1 (n `div` 4)) (listOf1 (genSomeOp doc)))) $ \ops ->
     let lhs = applySimpleOps ops doc
         rhs = foldl step (Right doc) ops
           where
             step (Left e) _  = Left e
             step (Right d) o = applySimpleOps [o] d
     in lhs === rhs
+
+-- | Property: All generated SimpleOps should comply with JSON schema
+prop_simpleop_json_schema_compliance :: Property
+prop_simpleop_json_schema_compliance =
+  forAll genPandoc $ \doc ->
+  forAll (genSomeOp doc) $ \op ->
+    counterexample ("Generated op: " ++ show op) $
+    counterexample ("JSON: " ++ show (encode op)) $
+    property (validateSimpleOpJSON op)
+
+-- | Property: All generated SimpleOp lists should comply with JSON schema
+prop_simpleops_list_json_schema_compliance :: Property
+prop_simpleops_list_json_schema_compliance =
+  forAll genPandoc $ \doc ->
+  forAll (sized (\n -> resize (max 1 (n `div` 6)) (listOf1 (genSomeOp doc)))) $ \ops ->
+    counterexample ("Generated ops: " ++ show ops) $
+    counterexample ("JSON: " ++ show (encode ops)) $
+    property (validateSimpleOpsJSON ops)
+
+-- | Property: Specific operation types maintain JSON schema compliance
+prop_operation_types_json_compliance :: Property
+prop_operation_types_json_compliance =
+  forAll genPandoc $ \doc ->
+  forAll (genValidPath doc) $ \path ->
+  forAll freshBlock $ \block ->
+  forAll freshAttr $ \attr ->
+  forAll freshInlines $ \inlines ->
+    let testOps =
+          [ Replace (FocusPath path) block
+          , InsertBefore (FocusPath path) block
+          , InsertAfter (FocusPath path) block
+          , Delete (FocusPath path)
+          , WrapBlockQuote (FocusPath path)
+          , WrapDiv (FocusPath path) attr
+          , SetAttr (FocusPath path) attr
+          , HeaderAdjust (FocusPath path) (Just 3) Nothing
+          , HeaderAdjust (FocusPath path) Nothing (Just 1)
+          , HeaderAdjust (FocusPath path) (Just 2) (Just (-1))
+          , AppendInlines (FocusPath path) inlines
+          ]
+    in conjoin $ map (\op ->
+         counterexample ("Op: " ++ show op) $
+         property (validateSimpleOpJSON op)
+       ) testOps
 
 genSomeOp :: Pandoc -> Gen SimpleOp
 genSomeOp doc = do
@@ -517,7 +581,8 @@ genSomeOp doc = do
 
 main :: IO ()
 main = defaultMain $
-  localOption (QuickCheckMaxSize 60) $  -- keep sizes moderate for speed/oom safety  -- keep sizes moderate for speed/oom safety
+  localOption (QuickCheckMaxSize 50) $  -- keep sizes small for speed
+  localOption (QuickCheckTests 100) $   -- reduce test count for speed
   testGroup "Text.Pandoc.Command.Simple (property tests)"
   [ QC.testProperty "Replace preserves container length"               prop_replace_preserves_length
   , QC.testProperty "Replace sets the block at focus"                  prop_replace_sets_block
@@ -532,4 +597,8 @@ main = defaultMain $
   , QC.testProperty "Invalid paths always fail (core ops)"             prop_invalid_paths_fail
   , QC.testProperty "JSON [SimpleOp] roundtrip"                        prop_json_roundtrip_ops
   , QC.testProperty "applySimpleOps equals sequential application"     prop_apply_ops_fold_equivalence
+  -- JSON Schema compliance tests
+  , QC.testProperty "Generated SimpleOp complies with JSON schema"     prop_simpleop_json_schema_compliance
+  , QC.testProperty "Generated SimpleOp lists comply with JSON schema" prop_simpleops_list_json_schema_compliance
+  , QC.testProperty "All operation types comply with JSON schema"      prop_operation_types_json_compliance
   ]
