@@ -1,4 +1,4 @@
-cabal-version: 3.14
+cabal-version: 3.12
 name: pandoc-command-simple
 version: 0.1.0.0
 license: BSD-3-Clause
@@ -27,10 +27,17 @@ description:
   and path-based addressing for nested structures.
 
 category: Text, JSON, Document Processing
-build-type: Simple
 extra-source-files: CHANGELOG.md
 tested-with:
   ghc ==9.8.4
+build-type: Custom
+
+custom-setup
+  setup-depends:
+    Cabal >=3.6,
+    base >=4.14,
+    directory,
+    filepath,
 
 library
   exposed-modules:
